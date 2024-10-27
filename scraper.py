@@ -8,6 +8,7 @@ from spacetime import Node
 
 
 all_urls = []
+total_words = []
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -35,6 +36,9 @@ def extract_next_links(url, resp):
     
 
     content = resp.raw_response.content.decode("utf-8", errors="ignore")
+    
+    token_dict = tokenize(content)
+    add_word_count(token_dict)
 
     if CheckLargeFile():
         return []
@@ -101,7 +105,7 @@ def CheckLowInformation(content):
     return False
 
 
-# TODO
+# Might need to update?
 def CheckLargeFile(content):
     threshold = 10 * 1024 * 1024 # Threshold of 10MB ? 
     content_size = int(content.headers.get("Content-length",0))
@@ -109,7 +113,22 @@ def CheckLargeFile(content):
         return True
     return False
 
+def tokenize(url):
+    content = dict()
+    # Add word counts to content
+    return content
 
+def add_word_count(token_dict):
+    for key in token_dict:
+        if key in total_words:
+            total_words[key] += 1
+        else:
+            total_words[key] = 1
+    return
+
+def Most_common_words():
+    top_5 = dict(sorted(total_words.items(), key=lambda item: item[1], reverse=True)[:5])
+    return top_5
 
 
 def calculate_unique_urls(urls):
