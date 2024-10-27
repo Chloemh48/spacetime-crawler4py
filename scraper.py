@@ -101,7 +101,7 @@ def CheckLowInformation(content):
     return False
 
 
-# TODO
+# Might need to update?
 def CheckLargeFile(content):
     threshold = 10 * 1024 * 1024 # Threshold of 10MB ? 
     content_size = int(content.headers.get("Content-length",0))
