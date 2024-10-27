@@ -1,4 +1,8 @@
 import re
+# TODO import tokenizer
+from nltk.corpus import stopwords
+from bs4 import BeautifulSoup
+
 from urllib.parse import urlparse
 from spacetime import Node
 
@@ -25,11 +29,21 @@ def extract_next_links(url, resp):
     if resp.status != 200:
         return []
     
-    if resp.raw_response is None or resp.raw_response.content is None:
+    
+    if resp.raw_response is None or resp.raw_response.content is None or url is None:
+        return []
+    
+
+    content = resp.raw_response.content.decode("utf-8", errors="ignore")
+
+    if CheckLargeFile():
+        return []
+    
+    if CheckLowInformation(content):
         return []
     
     # Decode the content of the response
-    content = resp.raw_response.content.decode("utf-8", errors="ignore")
+    
 
 
     # Extract all links using a regular expression to find href attributes
@@ -55,12 +69,16 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
         
+        if parsed.netloc == "today.uci.edu" and parsed.path.startswith("/department/information_computer_sciences/"):
+            return True
+        
          # Only allow URLs within the ics.uci.edu domain
         if not re.match(r".*\.(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu)", parsed.netloc):
             return False
 
-        if parsed.netloc == "today.uci.edu" and parsed.path.startswith("/department/information_computer_sciences/"):
-            return True
+        
+        
+
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -74,6 +92,23 @@ def is_valid(url):
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+
+# Might need to update?
+def CheckLowInformation(content):
+    # Threshold of 300 words?
+    if len(content) < 300:
+        return True
+    return False
+
+
+# TODO
+def CheckLargeFile(content):
+    threshold = 10 * 1024 * 1024 # Threshold of 10MB ? 
+    content_size = int(content.headers.get("Content-length",0))
+    if content_size > threshold:
+        return True
+    return False
+
 
 
 
@@ -96,5 +131,3 @@ def calculate_unique_urls(urls):
         json.dump(all_urls, f, indent=4)
     
     print(f"Saved {len(all_urls)} unique URLs to {json_file_path}")
-
-
