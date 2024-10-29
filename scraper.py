@@ -111,12 +111,32 @@ def extract_next_links(url, resp):
         subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
     
      # Extract links
+    # Extract links
     links = set()
+    link_count = 0  # Counter for the number of links found on the page
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
+        link_count += 1  # Increment link counter
+    
+    # Check for potential crawl loops
+        if href in seen_urls:
+            seen_urls[href] += 1  # Increment count for this URL
+            if seen_urls[href] > 5:  # Adjust threshold as needed
+                print(f"Potential crawl loop detected for {href}, marking as blacklisted.")
+                blacklisted_urls.add(href)
+                continue  # Skip this link since it's blacklisted
+        else:
+            seen_urls[href] = 1  # First time seeing this URL
+
+    # Check for infinite scroll or high link density
+        if link_count > 100:  # Example threshold for too many links
+            print(f"Potential trap detected: too many links on {url}")
+            blacklisted_urls.add(url)  # Blacklist the original URL
+            return []  # Skip further processing for this page
+
         if is_valid(href) and href not in seen_urls:
             links.add(href)
-            seen_urls.add(href)
+
     
     
     return list(links)
