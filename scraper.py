@@ -1,19 +1,55 @@
 import re
-# TODO import tokenizer
-from nltk.corpus import stopwords
-from bs4 import BeautifulSoup
-
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+from bs4 import BeautifulSoup, Comment
+from collections import Counter
 from spacetime import Node
+import chardet
 
 
-all_urls = []
-total_words = []
+
+# Global variables
+# tokens = {}
+scraped_urls = set() # URLs that have been scraped
+seen_urls = set()
+unique_urls = {}
+blacklisted_urls = set()
+max_words = ["", 0] # URL with the most words
+word_frequencies = Counter()
+subdomains = {}
+
+
+STOP_WORDS = {
+    'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and',
+    'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before',
+    'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could',
+    "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't",
+    'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't",
+    'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's",
+    'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how',
+    "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is',
+    "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most',
+    "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once',
+    'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over',
+    'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should',
+    "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their',
+    'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they',
+    "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to',
+    'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd",
+    "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when',
+    "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom',
+    'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd",
+    "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves'
+}
 
 def scraper(url, resp):
-    links = extract_next_links(url, resp)
-    all_urls.append(url)
-    return [link for link in links if is_valid(link)]
+    try:
+        links = extract_next_links(url, resp)
+        return [link for link in links if is_valid(link)]
+    except Exception as e:
+        print(f"Error in scraper for URL {url}: {e}")
+        return []
+  
+    
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -25,42 +61,90 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-
-    # Check if the response is valid
+    global max_words, word_frequencies, unique_urls, subdomains
     if resp.status != 200:
+        blacklisted_urls.add(url)
+        return []
+    if resp.raw_response is None or resp.raw_response.content is None:
         return []
     
-    
-    if resp.raw_response is None or resp.raw_response.content is None or url is None:
+    if CheckLargeFile(resp):
+        blacklisted_urls.add(url)
         return []
     
 
-    content = resp.raw_response.content.decode("utf-8", errors="ignore")
+    content = resp.raw_response.content
+    detected = chardet.detect(content)
+    encoding = detected['encoding'] if detected['encoding'] else 'utf-8'
+    decoded_content = content.decode(encoding, errors='ignore')
+    soup = BeautifulSoup(decoded_content, "lxml")  # Use decoded_content here
     
-    token_dict = tokenize(content)
-    add_word_count(token_dict)
-
-    if CheckLargeFile():
+    if CheckLowInformation(soup):
         return []
     
-    if CheckLowInformation(content):
-        return []
+    # Clean the soup: remove comments and unwanted tags
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+    for tag in soup.find_all(['script', 'style']):
+        tag.extract()
     
-    # Decode the content of the response
+    # Extract and normalize text, update max words if applicable
+    page_text = soup.get_text()
+    words = extract_words(page_text)
+    word_count = len(words)
+    word_frequencies.update(words)
+
+    # # Update tokens with the words for this specific page
+    # tokens[url] = words  # Store the list of words for the current page URL
+
+
+    base_url = url.split('#')[0]  # Remove fragment
+    unique_urls[base_url] = word_count
     
+    if word_count > max_words[1]:
+        max_words = [url, word_count]
+    
+      # Update subdomain statistics
+    parsed_url = urlparse(url)
+    if '.uci.edu' in parsed_url.netloc:
+        subdomain = parsed_url.netloc
+        subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
+    
+     # Extract links
+    # Extract links
+    links = set()
+    link_count = 0  # Counter for the number of links found on the page
+    for anchor in soup.find_all('a', href=True):
+        href = urljoin(url, anchor['href'].split('#')[0])
+        link_count += 1  # Increment link counter
+    
+    # Check for potential crawl loops
+        if href in seen_urls:
+            seen_urls[href] += 1  # Increment count for this URL
+            if seen_urls[href] > 5:  # Adjust threshold as needed
+                print(f"Potential crawl loop detected for {href}, marking as blacklisted.")
+                blacklisted_urls.add(href)
+                continue  # Skip this link since it's blacklisted
+        else:
+            seen_urls[href] = 1  # First time seeing this URL
 
+    # Check for infinite scroll or high link density
+        if link_count > 100:  # Example threshold for too many links
+            print(f"Potential trap detected: too many links on {url}")
+            blacklisted_urls.add(url)  # Blacklist the original URL
+            return []  # Skip further processing for this page
 
-    # Extract all links using a regular expression to find href attributes
-    extracted_links = re.findall(r'href=[\'"]?([^\'" >]+)', content)
+        if is_valid(href) and href not in seen_urls:
+            links.add(href)
 
-    # Filter out the links that are not valid
-    valid_links = []
-    for link in extracted_links:
-        if is_valid(link):
-            valid_links.append(link)
-        
-    return valid_links
+    
+    
+    return list(links)
 
+def extract_words(text):
+    """Extract words from text, removing special characters."""
+    words = re.findall(r'\b\w+\b', text.lower())
+    return [word for word in words if word not in STOP_WORDS]
 
 
 
@@ -68,21 +152,34 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+    global blacklisted_urls
     try:
         parsed = urlparse(url)
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in (["http", "https"]):
             return False
         
-        if parsed.netloc == "today.uci.edu" and parsed.path.startswith("/department/information_computer_sciences/"):
-            return True
+      
+        allowed_domains = {
+            "ics.uci.edu",
+            "cs.uci.edu",
+            "informatics.uci.edu",
+            "stat.uci.edu"
+        }
         
-         # Only allow URLs within the ics.uci.edu domain
-        if not re.match(r".*\.(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu)", parsed.netloc):
+
+        if parsed.netloc == "today.uci.edu":
+           return parsed.path.startswith("/department/information_computer_sciences/")
+        
+         # Check if domain matches any allowed domain
+        if not any(parsed.netloc.endswith(domain) for domain in allowed_domains):
+            return False
+        if url in blacklisted_urls:
+            return False
+        
+        if any(pattern in url for pattern in ["?share=", "pdf", "redirect", "#comment", "#respond", "#comments"]):
             return False
 
-        
-        
-
+      
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -97,56 +194,49 @@ def is_valid(url):
         print ("TypeError for ", parsed)
         raise
 
-# Might need to update?
-def CheckLowInformation(content):
-    # Threshold of 300 words?
-    if len(content) < 300:
-        return True
-    return False
+
+def CheckLowInformation(content: BeautifulSoup) -> bool:
+    return len(content.get_text().split()) < 300
 
 
-# Might need to update?
-def CheckLargeFile(content):
-    threshold = 10 * 1024 * 1024 # Threshold of 10MB ? 
-    content_size = int(content.headers.get("Content-length",0))
-    if content_size > threshold:
-        return True
-    return False
-
-def tokenize(url):
-    content = dict()
-    # Add word counts to content
-    return content
-
-def add_word_count(token_dict):
-    for key in token_dict:
-        if key in total_words:
-            total_words[key] += 1
-        else:
-            total_words[key] = 1
-    return
-
-def Most_common_words():
-    top_5 = dict(sorted(total_words.items(), key=lambda item: item[1], reverse=True)[:5])
-    return top_5
+def CheckLargeFile(resp) -> bool:
+    threshold = 10 * 1024 * 1024  # 10 MB
+    # Attempt to get 'Content-Length' or fallback to measuring length of raw content
+    content_size = int(resp.headers.get("Content-Length", len(resp.raw_response.content)) if hasattr(resp, 'headers') else len(resp.raw_response.content))
+    return content_size > threshold
 
 
-def calculate_unique_urls(urls):
-    unique_set = set()
-    for url in urls:
-        # Removing fragments
-        normalized_url, _ = urldefrag(url)
-        unique_set.add(normalized_url)
-        unique_list = list(unique_set)
 
-    try:
-        with open(json_file_path, "r") as f:
-            existing_data = json.load(f)
-    except FileNotFoundError:
-        existing_data = []
-    all_urls = list(set(existing_data + unique_list))
 
-    with open(json_file_path, "w") as f:
-        json.dump(all_urls, f, indent=4)
-    
-    print(f"Saved {len(all_urls)} unique URLs to {json_file_path}")
+def save_report(filename="crawler_report.txt"):
+    """Save crawling statistics to a file."""
+    with open(filename, "w", encoding='utf-8') as f:
+        f.write("Web Crawler Report\n")
+        f.write("=================\n\n")
+        
+        f.write(f"1. Number of unique pages: {len(unique_urls)}\n\n")
+        
+        f.write(f"2. Longest page:\n")
+        f.write(f"   URL: {max_words[0]}\n")
+        f.write(f"   Word count: {max_words[1]}\n\n")
+        
+        f.write("3. 50 most common words:\n")
+        for word, count in word_frequencies.most_common(50):
+            f.write(f"   {word}: {count}\n")
+        f.write("\n")
+        
+        f.write("4. Subdomains and page counts:\n")
+        for domain, count in sorted(subdomains.items()):
+            f.write(f"   {domain}, {count}\n")
+
+def print_statistics():
+    """Print current crawling statistics to the console."""
+    print(f"Unique URLs found: {len(unique_urls)}")
+    print(f"Longest page: {max_words[0]} with {max_words[1]} words")
+    print("\nTop 10 most common words:")
+    for word, count in word_frequencies.most_common(50):
+        print(f"{word}: {count}")
+    print("\nSubdomains found:")
+    for domain, count in sorted(subdomains.items()):
+        print(f"{domain}: {count} pages")
+
