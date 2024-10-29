@@ -4,8 +4,10 @@ from bs4 import BeautifulSoup, Comment
 from collections import Counter
 from spacetime import Node
 import chardet
+import time 
 
-
+last_save_time = time.time()  # Initialize the last save time
+save_interval = 5  # Set the interval (in seconds) for saving the report
 
 # Global variables
 # tokens = {}
@@ -61,7 +63,7 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    global max_words, word_frequencies, unique_urls, subdomains
+    global max_words, word_frequencies, unique_urls, subdomains, last_save_time
     if resp.status != 200:
         blacklisted_urls.add(url)
         return []
@@ -137,7 +139,13 @@ def extract_next_links(url, resp):
         if is_valid(href) and href not in seen_urls:
             links.add(href)
 
-    
+    # Check if it's time to save the report
+    current_time = time.time()
+    print("huuuuuu")
+    if current_time - last_save_time >= save_interval:
+        print("HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+        save_report()  # Call save_report function
+        last_save_time = current_time  # Update the last save time
     
     return list(links)
 

@@ -1,0 +1,77 @@
+Web Crawler Report
+=================
+
+1. Number of unique pages: 151
+
+2. Longest page:
+   URL: https://transformativeplay.ics.uci.edu/Tess-Tanenbaum
+   Word count: 3015
+
+3. 50 most common words:
+   ics: 2154
+   research: 1790
+   student: 1166
+   s: 1135
+   science: 1043
+   computer: 1018
+   uci: 892
+   graduate: 886
+   undergraduate: 864
+   learning: 818
+   data: 769
+   students: 721
+   informatics: 703
+   us: 634
+   will: 626
+   computing: 619
+   2022: 597
+   software: 591
+   school: 573
+   information: 554
+   community: 534
+   2024: 521
+   news: 513
+   project: 508
+   bren: 489
+   alumni: 480
+   7: 478
+   events: 463
+   support: 455
+   view: 450
+   projects: 445
+   1: 445
+   machine: 439
+   2021: 437
+   systems: 433
+   10: 431
+   spotlights: 429
+   programs: 427
+   future: 422
+   years: 405
+   statistics: 404
+   faculty: 397
+   academic: 374
+   2020: 373
+   october: 372
+   ago: 372
+   d: 371
+   engineering: 362
+   added: 359
+   edu: 346
+
+4. Subdomains and page counts:
+   cml.ics.uci.edu, 2
+   create.ics.uci.edu, 1
+   futurehealth.ics.uci.edu, 1
+   grape.ics.uci.edu, 13
+   hai.ics.uci.edu, 1
+   ics.uci.edu, 78
+   isg.ics.uci.edu, 2
+   malek.ics.uci.edu, 1
+   oai.ics.uci.edu, 1
+   sherlock.ics.uci.edu, 1
+   swiki.ics.uci.edu, 16
+   transformativeplay.ics.uci.edu, 1
+   www.ics.uci.edu, 6
+   www.informatics.uci.edu, 23
+   www.stat.uci.edu, 4
