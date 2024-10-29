@@ -1,51 +1,55 @@
 import re
-# TODO import tokenizer
-from nltk.corpus import stopwords
+from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Comment
 from collections import Counter
-
-from urllib.parse import urlparse, urljoin
 from spacetime import Node
-import time
+import chardet
 
 
-all_urls = []
-total_words = []
-tokens = {}
-scraped_urls = set()
+
+# Global variables
+# tokens = {}
+scraped_urls = set() # URLs that have been scraped
 seen_urls = set()
 unique_urls = {}
 blacklisted_urls = set()
-max_words = {"",0}
+max_words = ["", 0] # URL with the most words
 word_frequencies = Counter()
 subdomains = {}
-previous_loc = ""
-start_time = time.time()
 
 
-time_limit = 1800 # Time limit of 30 minutes to scrap similar subdomain names
-
-STOP_WORDS = {'ours', 'you', 'because', 'of', 'whom', 'my', 'them', 'into', 'under', 'on', "couldn't", 'yours', 'few', 's', 
-              'was', 'most', 'aren', 'so', 'our', 'shouldn', 'had', "she's", 'haven', "you've", 'itself', 'if', 'about', 
-              'only', "that'll", 'very', 'won', 'in', 'and', 'they', 'are', "you'd", 'down', 'nor', "don't", 'the', 'than', 
-              'ain', 'y', 'below', 're', 'how', 'once', 'while', 'she', 'against', "should've", 'be', 'don', 'ourselves', 'off',
-              'hers', 'its', 'both', 'm', 'who', "doesn't", 'his', "mightn't", 'then', 'it', 'those', "weren't", 'now', 'd', 
-              'he', 'through', "haven't", 'me', 'have', 'each', 'himself', 'where', 'other', 'all', 'after', 'at', 'these', 'until',
-              "aren't", "shouldn't", 'your', 'why', 'couldn', 'him', 'does', "isn't", 'just', 'shan', 'but', 'll', 'am', 'is', 
-              "didn't", 'which', 'wasn', 'should', 'her', "hasn't", 'o', "hadn't", "shan't", 'herself', 'doesn', "it's", 'myself',
-              'here', 'there', 'by', 'hasn', 'theirs', 'has', 'out', 'weren', 'yourself', "won't", 'can', 'up', 'having', 'doing', 
-              'being', 'an', 'with', 'mightn', 'to', 'isn', 'themselves', 'not', 'will', 'were', 've', 'same', 'this', 'some', 'their', 
-              "you're", 'been', 'over', 'when', 'i', 'yourselves', 'before', "wouldn't", 'ma', 'for', 'further', 'a', 'between', 'what',
-              'such', 'did', "you'll", "wasn't", 'too', 'any', 'own', 'during', 'above', 'from', 'more', 'we', "mustn't", 'or', 'wouldn',
-              'mustn', 'that', 'no', 'didn', 'again', "needn't", 't', 'as', 'needn', 'hadn', 'do'}
+STOP_WORDS = {
+    'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and',
+    'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before',
+    'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could',
+    "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't",
+    'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't",
+    'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's",
+    'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how',
+    "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is',
+    "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most',
+    "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once',
+    'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over',
+    'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should',
+    "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their',
+    'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they',
+    "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to',
+    'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd",
+    "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when',
+    "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom',
+    'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd",
+    "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves'
+}
 
 def scraper(url, resp):
     try:
-        links = extract_next_links(url,resp)
+        links = extract_next_links(url, resp)
         return [link for link in links if is_valid(link)]
     except Exception as e:
         print(f"Error in scraper for URL {url}: {e}")
         return []
+  
+    
 
 def extract_next_links(url, resp):
     # Implementation required.
@@ -57,34 +61,46 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    # Check if the response is valid
-    if resp.status != 200 or resp.raw_response is None or resp.raw_response.content is None or url is None: 
+    global max_words, word_frequencies, unique_urls, subdomains
+    if resp.status != 200:
+        blacklisted_urls.add(url)
+        return []
+    if resp.raw_response is None or resp.raw_response.content is None:
         return []
     
-    soup = BeautifulSoup(resp.raw_response.content, 'lxml')
-
-    if CheckLargeFile(resp.raw_response):
+    if CheckLargeFile(resp):
+        blacklisted_urls.add(url)
         return []
+    
+    if url in blacklisted_urls or scraped_urls:
+        return []
+    
+    
+    
+
+    content = resp.raw_response.content
+    detected = chardet.detect(content)
+    encoding = detected['encoding'] if detected['encoding'] else 'utf-8'
+    decoded_content = content.decode(encoding, errors='ignore')
+    soup = BeautifulSoup(decoded_content, "lxml")  # Use decoded_content here
     
     if CheckLowInformation(soup):
         return []
     
-    
-    
-    # Cleaning soup
+    # Clean the soup: remove comments and unwanted tags
     for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
         comment.extract()
-    for tag in soup.find_all(['script', 'style', 'meta', 'link', 'iframe', 'embed', 
-                              'noscript', 'form', 'input', 'button', 'nav', 
-                              'footer', 'aside', 'header', 'figure', 'figcaption']):
+    for tag in soup.find_all(['script', 'style']):
         tag.extract()
     
+    # Extract and normalize text, update max words if applicable
     page_text = soup.get_text()
     words = extract_words(page_text)
     word_count = len(words)
     word_frequencies.update(words)
 
-    scraped_urls.add(url)
+    # # Update tokens with the words for this specific page
+    # tokens[url] = words  # Store the list of words for the current page URL
 
 
     base_url = url.split('#')[0]  # Remove fragment
@@ -95,17 +111,39 @@ def extract_next_links(url, resp):
     
       # Update subdomain statistics
     parsed_url = urlparse(url)
+    scraped_urls.add(url)
+
     if '.uci.edu' in parsed_url.netloc:
         subdomain = parsed_url.netloc
         subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
     
      # Extract links
+    # Extract links
     links = set()
+    link_count = 0  # Counter for the number of links found on the page
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
+        link_count += 1  # Increment link counter
+    
+    # Check for potential crawl loops
+        if href in seen_urls:
+            seen_urls[href] += 1  # Increment count for this URL
+            if seen_urls[href] > 5:  # Adjust threshold as needed
+                print(f"Potential crawl loop detected for {href}, marking as blacklisted.")
+                blacklisted_urls.add(href)
+                continue  # Skip this link since it's blacklisted
+        else:
+            seen_urls[href] = 1  # First time seeing this URL
+
+    # Check for infinite scroll or high link density
+        if link_count > 100:  # Example threshold for too many links
+            print(f"Potential trap detected: too many links on {url}")
+            blacklisted_urls.add(url)  # Blacklist the original URL
+            return []  # Skip further processing for this page
+
         if is_valid(href) and href not in seen_urls:
             links.add(href)
-            seen_urls.add(href)
+
     
     
     return list(links)
@@ -113,20 +151,21 @@ def extract_next_links(url, resp):
 def extract_words(text):
     """Extract words from text, removing special characters."""
     words = re.findall(r'\b\w+\b', text.lower())
-    return [word for word in words if word not in STOP_WORDS and len(word) > 1]
+    return [word for word in words if word not in STOP_WORDS]
+
+
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
-
-
+    global blacklisted_urls, scraped_urls
     try:
         parsed = urlparse(url)
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in (["http", "https"]):
             return False
         
-        # Allowed domain names
+      
         allowed_domains = {
             "ics.uci.edu",
             "cs.uci.edu",
@@ -134,15 +173,17 @@ def is_valid(url):
             "stat.uci.edu"
         }
         
-        if detect_trap(url, parsed):
-            return False
 
-        # If the net location is today.uci.edu then check if the site is from the ICS department
         if parsed.netloc == "today.uci.edu":
            return parsed.path.startswith("/department/information_computer_sciences/")
         
          # Check if domain matches any allowed domain
         if not any(parsed.netloc.endswith(domain) for domain in allowed_domains):
+            return False
+        if url in blacklisted_urls:
+            return False
+        
+        if any(pattern in url for pattern in ["?share=", "pdf", "redirect", "#comment", "#respond", "#comments"]):
             return False
 
       
@@ -223,23 +264,48 @@ def print_statistics():
     for domain, count in sorted(subdomains.items()):
         print(f"{domain}: {count} pages")
 
+def CheckLowInformation(content: BeautifulSoup) -> bool:
+    return len(content.get_text().split()) < 300
 
-def calculate_unique_urls(urls):
-    unique_set = set()
-    for url in urls:
-        # Removing fragments
-        normalized_url, _ = urldefrag(url)
-        unique_set.add(normalized_url)
-        unique_list = list(unique_set)
 
-    try:
-        with open(json_file_path, "r") as f:
-            existing_data = json.load(f)
-    except FileNotFoundError:
-        existing_data = []
-    all_urls = list(set(existing_data + unique_list))
+def CheckLargeFile(resp) -> bool:
+    threshold = 10 * 1024 * 1024  # 10 MB
+    # Attempt to get 'Content-Length' or fallback to measuring length of raw content
+    content_size = int(resp.headers.get("Content-Length", len(resp.raw_response.content)) if hasattr(resp, 'headers') else len(resp.raw_response.content))
+    return content_size > threshold
 
-    with open(json_file_path, "w") as f:
-        json.dump(all_urls, f, indent=4)
-    
-    print(f"Saved {len(all_urls)} unique URLs to {json_file_path}")
+
+
+
+def save_report(filename="crawler_report.txt"):
+    """Save crawling statistics to a file."""
+    with open(filename, "w", encoding='utf-8') as f:
+        f.write("Web Crawler Report\n")
+        f.write("=================\n\n")
+        
+        f.write(f"1. Number of unique pages: {len(unique_urls)}\n\n")
+        
+        f.write(f"2. Longest page:\n")
+        f.write(f"   URL: {max_words[0]}\n")
+        f.write(f"   Word count: {max_words[1]}\n\n")
+        
+        f.write("3. 50 most common words:\n")
+        for word, count in word_frequencies.most_common(50):
+            f.write(f"   {word}: {count}\n")
+        f.write("\n")
+        
+        f.write("4. Subdomains and page counts:\n")
+        for domain, count in sorted(subdomains.items()):
+            f.write(f"   {domain}, {count}\n")
+
+def print_statistics():
+    """Print current crawling statistics to the console."""
+    print(f"Unique URLs found: {len(unique_urls)}")
+    print(f"Longest page: {max_words[0]} with {max_words[1]} words")
+    print("\nTop 10 most common words:")
+    for word, count in word_frequencies.most_common(50):
+        print(f"{word}: {count}")
+    print("\nSubdomains found:")
+    for domain, count in sorted(subdomains.items()):
+        print(f"{domain}: {count} pages")
+
