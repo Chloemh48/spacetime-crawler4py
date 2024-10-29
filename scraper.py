@@ -6,8 +6,8 @@ from spacetime import Node
 import chardet
 import time 
 
-last_save_time = time.time()  # Initialize the last save time
-save_interval = 5  # Set the interval (in seconds) for saving the report
+last_save_time = time.time() 
+save_interval = 5 
 
 # Global variables
 # tokens = {}
@@ -120,39 +120,35 @@ def extract_next_links(url, resp):
         subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
     
      # Extract links
-    # Extract links
     links = set()
-    link_count = 0  # Counter for the number of links found on the page
+    link_count = 0 
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
         link_count += 1  # Increment link counter
     
     # Check for potential crawl loops
         if href in seen_urls:
-            seen_urls[href] += 1  # Increment count for this URL
+            seen_urls[href] += 1  
             if seen_urls[href] > 5:  # Adjust threshold as needed
-                print(f"Potential crawl loop detected for {href}, marking as blacklisted.")
                 blacklisted_urls.add(href)
-                continue  # Skip this link since it's blacklisted
+                continue  
         else:
-            seen_urls[href] = 1  # First time seeing this URL
-
-    # Check for infinite scroll or high link density
-        if link_count > 100:  # Example threshold for too many links
-            print(f"Potential trap detected: too many links on {url}")
-            blacklisted_urls.add(url)  # Blacklist the original URL
-            return []  # Skip further processing for this page
+            seen_urls[href] = 1  
+  
+        if link_count > 100:  
+            blacklisted_urls.add(url) 
+            return []  
 
         if is_valid(href) and href not in seen_urls:
             links.add(href)
 
-    # Check if it's time to save the report
+   
     current_time = time.time()
     print("huuuuuu")
     if current_time - last_save_time >= save_interval:
         print("HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
-        save_report()  # Call save_report function
-        last_save_time = current_time  # Update the last save time
+        save_report() 
+        last_save_time = current_time 
     
     return list(links)
 
