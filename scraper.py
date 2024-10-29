@@ -72,6 +72,11 @@ def extract_next_links(url, resp):
         blacklisted_urls.add(url)
         return []
     
+    if url in blacklisted_urls or scraped_urls:
+        return []
+    
+    
+    
 
     content = resp.raw_response.content
     detected = chardet.detect(content)
@@ -106,6 +111,8 @@ def extract_next_links(url, resp):
     
       # Update subdomain statistics
     parsed_url = urlparse(url)
+    scraped_urls.add(url)
+
     if '.uci.edu' in parsed_url.netloc:
         subdomain = parsed_url.netloc
         subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
@@ -152,7 +159,7 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
-    global blacklisted_urls
+    global blacklisted_urls, scraped_urls
     try:
         parsed = urlparse(url)
         if parsed.scheme not in (["http", "https"]):
