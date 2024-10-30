@@ -15,7 +15,7 @@ def main(config_file, restart):
     config.cache_server = get_cache_server(config, restart)
     crawler = Crawler(config, restart)
     crawler.start()
-    calculate_unique_urls(all_urls, "unique_urls.json")
+    #calculate_unique_urls(all_urls, "unique_urls.json")
 
 
 

@@ -4,10 +4,14 @@ from bs4 import BeautifulSoup, Comment
 from collections import Counter
 from spacetime import Node
 import chardet
-import time 
+import time
 
-last_save_time = time.time() 
-save_interval = 5 
+
+SAVE_INTERVAL = 60  # Save every 5 minutes
+last_save_time = time.time()  # Track the last save time
+
+
+
 
 # Global variables
 # tokens = {}
@@ -63,21 +67,18 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    global max_words, word_frequencies, unique_urls, subdomains, last_save_time
+    global max_words, unique_urls, subdomains,  last_save_time
+    # Rest of the function remains the same
     if resp.status != 200:
         blacklisted_urls.add(url)
         return []
+    
     if resp.raw_response is None or resp.raw_response.content is None:
         return []
     
     if CheckLargeFile(resp):
         blacklisted_urls.add(url)
         return []
-    
-    if url in blacklisted_urls or scraped_urls:
-        return []
-    
-    
     
 
     content = resp.raw_response.content
@@ -114,48 +115,37 @@ def extract_next_links(url, resp):
       # Update subdomain statistics
     parsed_url = urlparse(url)
     scraped_urls.add(url)
-
     if '.uci.edu' in parsed_url.netloc:
         subdomain = parsed_url.netloc
         subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
     
      # Extract links
     links = set()
-    link_count = 0 
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
-        link_count += 1  # Increment link counter
-    
-    # Check for potential crawl loops
-        if href in seen_urls:
-            seen_urls[href] += 1  
-            if seen_urls[href] > 5:  # Adjust threshold as needed
-                blacklisted_urls.add(href)
-                continue  
-        else:
-            seen_urls[href] = 1  
-  
-        if link_count > 100:  
-            blacklisted_urls.add(url) 
-            return []  
-
         if is_valid(href) and href not in seen_urls:
             links.add(href)
+            seen_urls.add(href)
 
-   
+    if len(links) < 5:
+        return []
+
+
+
     current_time = time.time()
-    print("huuuuuu")
-    if current_time - last_save_time >= save_interval:
-        print("HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
-        save_report() 
-        last_save_time = current_time 
+    if current_time - last_save_time >= SAVE_INTERVAL:
+        save_report()
+        last_save_time = current_time  # Update the last save time
+
+    
     
     return list(links)
 
 def extract_words(text):
     """Extract words from text, removing special characters."""
-    words = re.findall(r'\b\w+\b', text.lower())
-    return [word for word in words if word not in STOP_WORDS]
+    tokens = re.findall(r'\b[a-zA-Z0-9]{3,}\b', text)
+    # Normalize tokens to lowercase and filter out stop words
+    return [word.lower() for word in tokens if word.lower() not in STOP_WORDS]
 
 
 
@@ -184,11 +174,25 @@ def is_valid(url):
          # Check if domain matches any allowed domain
         if not any(parsed.netloc.endswith(domain) for domain in allowed_domains):
             return False
-        if url in blacklisted_urls:
+        
+        if url in blacklisted_urls or url in scraped_urls:
             return False
         
-        if any(pattern in url for pattern in ["?share=", "pdf", "redirect", "#comment", "#respond", "#comments"]):
+        unwanted_patterns = [
+        "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
+        "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
+        "redirect", "#comment", "#respond", "#comments", 
+        "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
+        "year", "month", "day", "date", "week", "calendar", 
+        "archive", "history", "past", "previous", r"^\d{4}-\d{2}-\d{2}$", r"^\d{2}-\d{2}-\d{4}$", r"^\d{2}-\d{4}-\d{2}$",
+        r"/publication/\d{4}"
+
+    ]
+        if any(pattern in url for pattern in unwanted_patterns):
             return False
+        
+    
+        
 
       
         return not re.match(
@@ -205,68 +209,6 @@ def is_valid(url):
         print ("TypeError for ", parsed)
         raise
 
-# Might need to update?
-def CheckLowInformation(content:BeautifulSoup) -> bool:
-    # Threshold of 300 words?
-    if len(content.get_text().split) < 300:
-        return True
-    return False
-
-
-# Might need to update?
-def CheckLargeFile(content) -> bool:
-    threshold = 10 * 1024 * 1024 # Threshold of 10MB ? 
-    content_size = int(content.headers.get("Content-length",0))
-    if content_size > threshold:
-        return True
-    return False
-
-def detect_trap(url, resp) -> bool:
-    if url in scraped_urls or url in seen_urls or url in blacklisted_urls:
-        return True
-    if time.time() - start_time >= 1800: # 30 Minute time limit on using the same subdomain
-        if resp.netloc == previous_loc.netloc:
-            return True
-        else:
-            start_time = 0
-    return False
-
-    
-
-
-
-
-def save_report(filename="crawler_report.txt"):
-    """Save crawling statistics to a file."""
-    with open(filename, "w", encoding='utf-8') as f:
-        f.write("Web Crawler Report\n")
-        f.write("=================\n\n")
-        
-        f.write(f"1. Number of unique pages: {len(unique_urls)}\n\n")
-        
-        f.write(f"2. Longest page:\n")
-        f.write(f"   URL: {max_words[0]}\n")
-        f.write(f"   Word count: {max_words[1]}\n\n")
-        
-        f.write("3. 50 most common words:\n")
-        for word, count in word_frequencies.most_common(50):
-            f.write(f"   {word}: {count}\n")
-        f.write("\n")
-        
-        f.write("4. Subdomains and page counts:\n")
-        for domain, count in sorted(subdomains.items()):
-            f.write(f"   {domain}, {count}\n")
-
-def print_statistics():
-    """Print current crawling statistics to the console."""
-    print(f"Unique URLs found: {len(unique_urls)}")
-    print(f"Longest page: {max_words[0]} with {max_words[1]} words")
-    print("\nTop 10 most common words:")
-    for word, count in word_frequencies.most_common(10):
-        print(f"{word}: {count}")
-    print("\nSubdomains found:")
-    for domain, count in sorted(subdomains.items()):
-        print(f"{domain}: {count} pages")
 
 def CheckLowInformation(content: BeautifulSoup) -> bool:
     return len(content.get_text().split()) < 300
@@ -281,26 +223,44 @@ def CheckLargeFile(resp) -> bool:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 def save_report(filename="crawler_report.txt"):
     """Save crawling statistics to a file."""
-    with open(filename, "w", encoding='utf-8') as f:
-        f.write("Web Crawler Report\n")
-        f.write("=================\n\n")
-        
-        f.write(f"1. Number of unique pages: {len(unique_urls)}\n\n")
-        
-        f.write(f"2. Longest page:\n")
-        f.write(f"   URL: {max_words[0]}\n")
-        f.write(f"   Word count: {max_words[1]}\n\n")
-        
-        f.write("3. 50 most common words:\n")
-        for word, count in word_frequencies.most_common(50):
-            f.write(f"   {word}: {count}\n")
-        f.write("\n")
-        
-        f.write("4. Subdomains and page counts:\n")
-        for domain, count in sorted(subdomains.items()):
-            f.write(f"   {domain}, {count}\n")
+    try:
+        with open(filename, "w", encoding='utf-8') as f:
+            f.write("Web Crawler Report\n")
+            f.write("=================\n\n")
+            
+            f.write(f"1. Number of unique pages: {len(unique_urls)}\n\n")
+            
+            f.write(f"2. Longest page:\n")
+            f.write(f"   URL: {max_words[0]}\n")
+            f.write(f"   Word count: {max_words[1]}\n\n")
+            
+            f.write("3. 50 most common words:\n")
+            for word, count in word_frequencies.most_common(50):
+                f.write(f"   {word}: {count}\n")
+            f.write("\n")
+            
+            f.write("4. Subdomains and page counts:\n")
+            for domain, count in sorted(subdomains.items()):
+                f.write(f"   {domain}, {count}\n")
+
+            print("Report saved successfully.")
+    except IOError as e:
+        print(f"Failed to save report due to an IOError: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 def print_statistics():
     """Print current crawling statistics to the console."""
