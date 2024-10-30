@@ -270,28 +270,24 @@ def print_statistics():
 #no links
 #links with dates
 #
+from urllib.parse import urlparse, urlunparse
+
 def normalize_url(url):
     # Parse the URL
     parsed = urlparse(url)
     
-    # Parse query parameters
-    query_params = parse_qs(parsed.query)
+    # Rebuild the URL without query parameters and fragment
+    normalized_url = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        '',           # Empty query string
+        ''            # Empty fragment
+    ))
     
-    # Remove unwanted parameters
-    # Adjust this list based on parameters you want to exclude
-    unwanted_params = {"do", "rev", "share", "redirect"}
-    filtered_params = {k: v for k, v in query_params.items() if k not in unwanted_params}
-    
-    # Optionally, you can also remove all query parameters
-    # filtered_params = {}
-    
-    # Sort remaining query parameters and encode them
-    sorted_query = urlencode(sorted((k, v[0]) for k, v in filtered_params.items()))
-    
-    # Construct the normalized URL without the fragment
-    normalized_url = parsed._replace(query=sorted_query, fragment='').geturl()
-    
-    return normalized_url.lower() 
+    return normalized_url.lower()
+ 
 
 
 def tokenize(text):
