@@ -1,77 +1,70 @@
 Web Crawler Report
 =================
 
-1. Number of unique pages: 151
+1. Number of unique pages: 109
 
 2. Longest page:
-   URL: https://transformativeplay.ics.uci.edu/Tess-Tanenbaum
-   Word count: 3015
+   URL: http://www.ics.uci.edu/~fielding/pubs/dissertation/evaluation.htm
+   Word count: 6346
 
 3. 50 most common words:
-   ics: 2154
-   research: 1790
-   student: 1166
-   s: 1135
-   science: 1043
-   computer: 1018
-   uci: 892
-   graduate: 886
-   undergraduate: 864
-   learning: 818
-   data: 769
-   students: 721
-   informatics: 703
-   us: 634
-   will: 626
-   computing: 619
-   2022: 597
-   software: 591
-   school: 573
-   information: 554
-   community: 534
-   2024: 521
-   news: 513
-   project: 508
-   bren: 489
-   alumni: 480
-   7: 478
-   events: 463
-   support: 455
-   view: 450
-   projects: 445
-   1: 445
-   machine: 439
-   2021: 437
-   systems: 433
-   10: 431
-   spotlights: 429
-   programs: 427
-   future: 422
-   years: 405
-   statistics: 404
-   faculty: 397
-   academic: 374
-   2020: 373
-   october: 372
-   ago: 372
-   d: 371
-   engineering: 362
-   added: 359
-   edu: 346
+   software: 1011
+   can: 502
+   engineering: 459
+   students: 432
+   architecture: 397
+   architectural: 383
+   may: 359
+   systems: 349
+   information: 336
+   design: 335
+   research: 328
+   data: 325
+   pdf: 323
+   web: 320
+   work: 301
+   malek: 301
+   sam: 289
+   computer: 282
+   ics: 281
+   will: 280
+   system: 271
+   based: 263
+   university: 260
+   informatics: 251
+   http: 248
+   use: 243
+   uci: 240
+   conference: 238
+   style: 238
+   international: 225
+   server: 223
+   health: 212
+   student: 211
+   application: 196
+   components: 191
+   one: 190
+   network: 190
+   irvine: 184
+   people: 182
+   within: 181
+   styles: 181
+   technology: 180
+   also: 180
+   time: 179
+   rest: 179
+   professor: 177
+   california: 175
+   acm: 164
+   first: 157
+   client: 157
 
 4. Subdomains and page counts:
-   cml.ics.uci.edu, 2
    create.ics.uci.edu, 1
-   futurehealth.ics.uci.edu, 1
-   grape.ics.uci.edu, 13
-   hai.ics.uci.edu, 1
-   ics.uci.edu, 78
-   isg.ics.uci.edu, 2
+   hai.ics.uci.edu, 3
+   ics.uci.edu, 6
    malek.ics.uci.edu, 1
-   oai.ics.uci.edu, 1
-   sherlock.ics.uci.edu, 1
-   swiki.ics.uci.edu, 16
-   transformativeplay.ics.uci.edu, 1
-   www.ics.uci.edu, 6
-   www.informatics.uci.edu, 23
-   www.stat.uci.edu, 4
+   seal.ics.uci.edu, 3
+   www.ics.uci.edu, 48
+   www.informatics.ics.uci.edu, 1
+   www.informatics.uci.edu, 46
