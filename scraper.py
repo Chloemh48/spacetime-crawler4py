@@ -76,7 +76,6 @@ def extract_next_links(url, resp):
         print(f"Blacklisting URL: {url} due to status: {resp.status}")
         blacklisted_urls.add(url)
         return []
-    
     if resp.raw_response is None or resp.raw_response.content is None:
         print(f"No content for URL: {url}")
         return []
@@ -241,6 +240,8 @@ def CheckLargeFile(resp) -> bool:
     return content_size > threshold
 
 
+def CheckLowInformation(content: BeautifulSoup) -> bool:
+    return len(content.get_text().split()) < 300
 
 
 

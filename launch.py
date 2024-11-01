@@ -17,9 +17,6 @@ def main(config_file, restart):
     crawler.start()
     #calculate_unique_urls(all_urls, "unique_urls.json")
 
-
-
-
 if __name__ == "__main__":
 
     parser = ArgumentParser()
