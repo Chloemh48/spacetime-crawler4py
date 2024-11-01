@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlencode, parse_qs, u
 from bs4 import BeautifulSoup, Comment
 from collections import Counter
 from spacetime import Node
@@ -13,10 +13,13 @@ last_save_time = time.time()  # Track the last save time
 
 
 
+last_save_time = time.time()  # Initialize the last save time
+save_interval = 5  # Set the interval (in seconds) for saving the report
+
 # Global variables
 # tokens = {}
 scraped_urls = set() # URLs that have been scraped
-seen_urls = set()
+seen_urls = {}
 unique_urls = {}
 blacklisted_urls = set()
 max_words = ["", 0] # URL with the most words
@@ -70,10 +73,12 @@ def extract_next_links(url, resp):
     global max_words, unique_urls, subdomains,  last_save_time
     # Rest of the function remains the same
     if resp.status != 200:
+        print(f"Blacklisting URL: {url} due to status: {resp.status}")
         blacklisted_urls.add(url)
         return []
     
     if resp.raw_response is None or resp.raw_response.content is None:
+        print(f"No content for URL: {url}")
         return []
     
     if CheckLargeFile(resp):
@@ -96,6 +101,8 @@ def extract_next_links(url, resp):
     for tag in soup.find_all(['script', 'style']):
         tag.extract()
     
+    for tag in soup(['footer', 'header', 'meta', 'nav']):
+        tag.extract()
     # Extract and normalize text, update max words if applicable
     page_text = soup.get_text()
     words = extract_words(page_text)
@@ -120,24 +127,29 @@ def extract_next_links(url, resp):
         subdomains[subdomain] = subdomains.get(subdomain, 0) + 1
     
      # Extract links
+    # Extract links
     links = set()
+    link_count = 0  # Counter for the number of links found on the page
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
-        if is_valid(href) and href not in seen_urls:
-            links.add(href)
-            seen_urls.add(href)
+        normalized_href = normalize_url(href)
+        print("HEY" + " " + normalized_href)
 
-    if len(links) < 5:
-        return []
+        # Prevent cycles
+        if normalized_href == base_url or normalized_href in seen_urls and seen_urls[normalized_href] > 5:
+            continue
 
+        # Update seen URLs
+        seen_urls[normalized_href] = seen_urls.get(normalized_href, 0) + 1
 
+        if is_valid(normalized_href) and normalized_href not in blacklisted_urls:
+            links.add(normalized_href)
 
+    # Check if it's time to save the report
     current_time = time.time()
-    if current_time - last_save_time >= SAVE_INTERVAL:
-        save_report()
+    if current_time - last_save_time >= save_interval:
+        save_report()  # Call save_report function
         last_save_time = current_time  # Update the last save time
-
-    
     
     return list(links)
 
@@ -150,64 +162,72 @@ def extract_words(text):
 
 
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
-    # If you decide to crawl it, return True; otherwise return False.
-    # There are already some conditions that return False.
-    global blacklisted_urls, scraped_urls
+    """Decides whether to crawl the given URL or not."""
+    global blacklisted_urls
+    
     try:
+        # Parse the URL
         parsed = urlparse(url)
-        if parsed.scheme not in (["http", "https"]):
-            return False
         
-      
+        # Check if the scheme is valid
+        if parsed.scheme not in ("http", "https"):
+            return False
+
+        # Define allowed domains
         allowed_domains = {
             "ics.uci.edu",
             "cs.uci.edu",
             "informatics.uci.edu",
             "stat.uci.edu"
         }
-        
 
+        # Define unwanted patterns in the URL
+        unwanted_patterns = [
+            "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
+            "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
+            "redirect", "#comment", "#respond", "#comments", 
+            "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
+            "year", "month", "day", "date", "week", "calendar", "login", "html"
+            "archive", "history", "past", "previous",
+            r"\b\d{4}\b"  # Matches four-digit years
+        ]
+
+        # Special case for today.uci.edu domain
         if parsed.netloc == "today.uci.edu":
-           return parsed.path.startswith("/department/information_computer_sciences/")
-        
-         # Check if domain matches any allowed domain
+            return parsed.path.startswith("/department/information_computer_sciences/")
+
+        # Check if the domain matches any allowed domain
         if not any(parsed.netloc.endswith(domain) for domain in allowed_domains):
             return False
         
-        if url in blacklisted_urls or url in scraped_urls:
+        # Check if the URL is blacklisted
+        if url in blacklisted_urls:
             return False
         
-        unwanted_patterns = [
-        "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
-        "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
-        "redirect", "#comment", "#respond", "#comments", 
-        "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
-        "year", "month", "day", "date", "week", "calendar", 
-        "archive", "history", "past", "previous", r"^\d{4}-\d{2}-\d{2}$", r"^\d{2}-\d{2}-\d{4}$", r"^\d{2}-\d{4}-\d{2}$",
-        r"/publication/\d{4}"
-
-    ]
-        if any(pattern in url for pattern in unwanted_patterns):
+        # Check for unwanted patterns in the path or query
+        for pattern in unwanted_patterns:
+            if re.search(pattern, url):
+                return False
+        
+        # Check for date format in URL paths (e.g., YYYY-MM-DD)
+        date_pattern = r"/\d{4}-\d{2}-\d{2}/"
+        if re.search(date_pattern, parsed.path):
             return False
         
-    
+        # Check if the URL is pointing to static files
+        if re.match(
+            r".*\.(css|js|bmp|gif|jpe?g|ico|png|tiff?|mid|mp2|mp3|mp4|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
+            r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+            r"|epub|dll|cnf|tgz|sha1|thmx|mso|arff|rtf|jar|csv|rm|smil|wmv|swf|wma|zip|rar|gz)$", 
+            parsed.path.lower()):
+            return False
         
-
-      
-        return not re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
-            + r"|png|tiff?|mid|mp2|mp3|mp4"
-            + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
-            + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-            + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        # If all checks pass, return True
+        return True
 
     except TypeError:
-        print ("TypeError for ", parsed)
-        raise
+        print("TypeError for ", url)
+        return False  # Return False for invalid URLs
 
 
 def CheckLowInformation(content: BeautifulSoup) -> bool:
@@ -272,4 +292,97 @@ def print_statistics():
     print("\nSubdomains found:")
     for domain, count in sorted(subdomains.items()):
         print(f"{domain}: {count} pages")
+
+#path to itself return
+#no links
+#links with dates
+#
+from urllib.parse import urlparse, urlunparse
+
+def normalize_url(url):
+    # Parse the URL
+    parsed = urlparse(url)
+    
+    # Rebuild the URL without query parameters and fragment
+    normalized_url = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        '',           # Empty query string
+        ''            # Empty fragment
+    ))
+    
+    return normalized_url.lower()
+ 
+
+
+def tokenize(text):
+    for line in text:
+        token = ""
+        for character in text:
+            if(character.isalpha() or character.isnumeric()):
+                token += character
+            else:
+                #If there exist a token insert it in the token list
+                #Reset the token to empty after you insert to reset the process
+                if token:
+                    yield(token)
+                token = ""
+        #Adds last token if there exists
+        #Accounts for edge case if there is a remaning token and the for loop ended
+        if token:
+            yield(token)
+
+
+#Time complexity is O(n) since it does a for loop n times (amount of tokens) and it inserts/looks
+#up in the dictionary which is O(1)
+#Last for loop is O(n) reverting dictionary back into the list format
+#returns list of [word, frequency]
+def computeWordFrequencies(token_list):
+    
+    word_frequency_list_dict = {}
+    freq_list = []
+    
+    for token in token_list:
+         
+        #lowercase the token to "normalize it"
+        lower_token = token.lower()
+
+        if lower_token in word_frequency_list_dict:
+            word_frequency_list_dict[lower_token] += 1
+            
+        else:
+            word_frequency_list_dict[lower_token] = 1
+    
+    for token, frequency in word_frequency_list_dict.items():
+        freq_list.append([token, frequency])
+
+    return freq_list
+         
+            
+
+#Looked at pseudocode section from source url https://www.tutorialspoint.com/data_structures_algorithms/insertion_sort_alg
+# Did not look at python code section 
+#Sorting function is O(n^2) at worst case and best case O(n) as inner while loop will never be called if sorted
+def customInsertionSort(list_to_be_sorted):
+    len_of_arr = len(list_to_be_sorted)
+
+    for j in range(1, len_of_arr):
+        key = list_to_be_sorted[j]
+        i = j -1
+        while(i >= 0 and list_to_be_sorted[i][1] < key[1]):
+            list_to_be_sorted[i + 1] = list_to_be_sorted[i]
+            i -= 1
+        list_to_be_sorted[i + 1] = key
+
+    return list_to_be_sorted
+
+#Time complexity is O(n(n^2)) worst case since youll have to sort it using insertion sort
+#Best case is O(n) if its already sorted and you just print + n times
+def printFrequencies(Frequencies):
+    #sort function
+    sorted_list = customInsertionSort(Frequencies)
+    for sublist in sorted_list:
+        print(sublist[0] + " - " + str(sublist[1]))
 
