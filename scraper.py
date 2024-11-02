@@ -1,4 +1,5 @@
 
+
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Comment
@@ -93,7 +94,7 @@ def extract_next_links(url, resp):
     is_near_duplicate = simhash(page_text_for_simhash, url_hash)
     
     if is_near_duplicate:
-        url_hash.append(["www.htpp.blah", is_near_duplicate])
+        url_hash.append([url, is_near_duplicate])
     
     else:
         return []
@@ -122,8 +123,7 @@ def extract_next_links(url, resp):
     links = set()
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
-        if is_valid(href):
-		if href not in seen_urls:
+        if is_valid(href) and href not in seen_urls:
             links.add(href)
             seen_urls.add(href)
 
@@ -143,7 +143,7 @@ def extract_words(text):
     words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
     tokenized_words = nltk.word_tokenize(' '.join(words))
     # Only include words that are alphabetic, have a length >= 3, and are not in STOP_WORDS
-     non_stop_words = [
+    non_stop_words = [
         word for word in tokenized_words if word.isalpha() and len(word) >= 3 and word not in stop_words
     ]
 
@@ -276,7 +276,7 @@ def check_similarity(curr_hash, stored_hash):
 
 def is_near_duplicates(curr_hash_set, url_hashes):
 
-    threshold = .5
+    threshold = .85
     for url, fingerprints in url_hashes:
         similarity = check_similarity(curr_hash_set, set(fingerprints))
 
@@ -357,6 +357,7 @@ def print_statistics():
     print("\nSubdomains found:")
     for domain, count in sorted(subdomains.items()):
         print(f"{domain}: {count} pages")
+
 
 
 
