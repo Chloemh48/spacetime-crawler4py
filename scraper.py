@@ -160,14 +160,18 @@ def is_valid(url):
         # filter unwanted urls to avoid traps
     
         unwanted_patterns = [
-            "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
+            "filter", "tribe-bar-date=",  "outlook-ical=", "ical=1", 
             "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
             "redirect", "#comment", "#respond", "#comments", 
             "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
             "year", "month", "day", "date", "week", "calendar", 
             "archive", "history", "past", "previous", "footer", "header", "meta", "nav",
-            "wordlist", "dictionary", "glossary", 
+            "wordlist", "dictionary", "glossary",
+
+            #Filtering out events 
+            r"/events/\d+", r"/events/month/", r"/events/week/",
             # Date formatted patterns or Year
+            
             r"^\d{4}-\d{2}-\d{2}$", r"^\d{2}-\d{2}-\d{4}$", r"\b(19|20)\d{2}\b"
         ]
 
