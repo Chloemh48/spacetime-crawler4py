@@ -1,3 +1,4 @@
+
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Comment
@@ -5,12 +6,9 @@ from collections import Counter
 from spacetime import Node
 import chardet
 import time
+
 import nltk
 from nltk.corpus import stopwords
-
-# Downloaded the stopwords package
-nltk.download('stopwords')
-nltk.download('punkt')
 
 
 SAVE_INTERVAL = 60  # Save every 5 minutes
@@ -18,6 +16,9 @@ last_save_time = time.time()  # Track the last save time
 
 
 
+# Downloaded the stopwords package
+nltk.download('stopwords')
+nltk.download('punkt')
 
 # Global variables
 # tokens = {}
@@ -28,7 +29,7 @@ blacklisted_urls = set()
 max_words = ["", 0] # URL with the most words
 word_frequencies = Counter()
 subdomains = {}
-
+url_hash = []
 
 
 def scraper(url, resp):
@@ -86,6 +87,17 @@ def extract_next_links(url, resp):
  
     # Extract visible text
     # page_text = soup.get_text()
+    
+    page_text_for_simhash = soup.get_text().split()
+
+    is_near_duplicate = simhash(page_text_for_simhash, url_hash)
+    
+    if is_near_duplicate:
+        url_hash.append(["www.htpp.blah", is_near_duplicate])
+    
+    else:
+        return []
+        
     page_text = soup.get_text(separator=" ")
     words = extract_words(page_text)
     word_count = len(words)
@@ -110,7 +122,8 @@ def extract_next_links(url, resp):
     links = set()
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
-        if is_valid(href) and href not in seen_urls:
+        if is_valid(href):
+		if href not in seen_urls:
             links.add(href)
             seen_urls.add(href)
 
@@ -137,10 +150,8 @@ def extract_words(text):
     return non_stop_words
 
 
-
-
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     global blacklisted_urls
@@ -150,11 +161,13 @@ def is_valid(url):
             return False
         
         if parsed.query:
+            return False	
+	
+        if rep_segment(parsed):
             return False
-   
         # filter unwanted urls to avoid traps
     
-        unwanted_patterns = [
+            unwanted_patterns = [
         "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
         "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
         "redirect", "#comment", "#respond", "#comments", 
@@ -213,7 +226,98 @@ def CheckLargeFile(resp) -> bool:
     return content_size > threshold
 
 
+def generate_trigram(list_of_words):
 
+    trigrams = []
+    
+    for i in range(len(list_of_words)-2):
+        trigram = (list_of_words[i], list_of_words[i+1], list_of_words[i+2])
+        if trigram not in trigrams:
+            trigrams.append(trigram)
+    
+    return trigrams
+
+def filter_trigram(trigrams, max_trigrams = 100):
+    
+    select_trigrams = set()
+
+    count = 0
+    #Compute a "hash value for each trigram and filter out using mod"
+    for trigram in trigrams:
+        value = 0
+        for word in trigram:
+            for char in word:
+                number = ord(char)
+                value += number
+        
+        if value % 4 == 0:
+
+            if count >= max_trigrams:
+                break
+            select_trigrams.add(trigram)
+    
+    return select_trigrams
+
+
+def check_similarity(curr_hash, stored_hash):
+    
+    intersection = curr_hash.intersection(stored_hash)
+    union = curr_hash.union(stored_hash)
+
+    if not union:  # Avoid division by zero
+        return 0.0
+
+    # Calculate similarity
+    similarity = len(intersection) / len(union)
+    print("stored hash")
+    print(stored_hash)
+    print("similarity is " + str(similarity))
+    return similarity
+
+def is_near_duplicates(curr_hash_set, url_hashes):
+
+    threshold = .5
+    for url, fingerprints in url_hashes:
+        similarity = check_similarity(curr_hash_set, set(fingerprints))
+
+        if similarity >= threshold:
+            return True
+        
+    
+    return False 
+
+
+def simhash(words, url_hashes):
+
+
+    trigrams = generate_trigram(words)
+    selected_trigrams = filter_trigram(trigrams)
+
+    if not url_hashes:
+        return selected_trigrams
+
+    if is_near_duplicates(selected_trigrams, url_hashes):
+        return False
+
+    return selected_trigrams
+
+def rep_segment(parsed_url):
+    path_segments = parsed_url.path.split('/')
+    segment_counts = {}
+    
+    for segment in path_segments:
+        if not segment:
+            continue
+        
+        if segment in segment_counts:
+            segment_counts[segment] += 1
+        else:
+            segment_counts[segment] = 1
+        
+        if segment_counts[segment] >= 3:
+            return True
+    
+    return False
 
 def save_report(filename="CrawlerReport.txt"):
     """Save crawling statistics to a file."""
