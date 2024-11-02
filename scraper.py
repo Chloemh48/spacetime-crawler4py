@@ -90,7 +90,7 @@ def extract_next_links(url, resp):
     
     page_text_for_simhash = soup.get_text().split()
 
-    is_near_duplicate = simhash(word_list, url_hash)
+    is_near_duplicate = simhash(page_text_for_simhash, url_hash)
     
     if is_near_duplicate:
         url_hash.append(["www.htpp.blah", is_near_duplicate])
@@ -122,7 +122,8 @@ def extract_next_links(url, resp):
     links = set()
     for anchor in soup.find_all('a', href=True):
         href = urljoin(url, anchor['href'].split('#')[0])
-        if is_valid(href) and href not in seen_urls:
+        if is_valid(href):
+		if href not in seen_urls:
             links.add(href)
             seen_urls.add(href)
 
@@ -146,7 +147,7 @@ def extract_words(text):
         word for word in tokenized_words if word.isalpha() and len(word) >= 3 and word not in stop_words
     ]
 
-    retuen non_stop_words
+    return non_stop_words
 
 
 def is_valid(url):
