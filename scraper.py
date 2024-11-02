@@ -10,7 +10,6 @@ from nltk.corpus import stopwords
 
 # Downloaded the stopwords package
 nltk.download('stopwords')
-nltk.download('punkt')
 
 
 SAVE_INTERVAL = 60  # Save every 5 minutes
@@ -79,14 +78,8 @@ def extract_next_links(url, resp):
         comment.extract()
     for tag in soup.find_all(['script', 'style']):
         tag.extract()
-
-    # # Remove structural or non-essential tags: <footer>, <header>, <meta>, <nav>
-    # for tag in soup(['footer', 'header', 'meta', 'nav']):
-    #     tag.extract()
     
- 
-    # Extract visible text
-    # page_text = soup.get_text()
+
     page_text = soup.get_text(separator=" ")
     words = extract_words(page_text)
     word_count = len(words)
@@ -95,7 +88,7 @@ def extract_next_links(url, resp):
 
 
 
-    base_url = url.split('#')[0]  # Remove fragment
+    base_url = url.split('#')[0]
     unique_urls[base_url] = word_count
     
     if word_count > max_words[1] and "wordlist" not in url:
@@ -115,9 +108,11 @@ def extract_next_links(url, resp):
             links.add(href)
             seen_urls.add(href)
 
+    # If there are less than 5 links branching from this one then we consider it to be low information 
     if len(links) < 5:
         return []
 
+    # Updating logs
     current_time = time.time()
     if current_time - last_save_time >= SAVE_INTERVAL:
         save_report()
@@ -129,6 +124,7 @@ def extract_next_links(url, resp):
 
 
 def extract_words(text):
+    #Stopwords that we want to filter alongside regexing for any 19xx/20xx year, and every month
     stop_words = set(stopwords.words('english'))
     stop_words.update(["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", r"\b(19|20)\d{2}\b"])
 
@@ -161,17 +157,17 @@ def is_valid(url):
     
         unwanted_patterns = [
             "filter", "tribe-bar-date=",  "outlook-ical=", "ical=1", 
-            "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
+            "/list/", "eventDisplay=past", "?share=", "pdf", 
             "redirect", "#comment", "#respond", "#comments", 
             "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
             "year", "month", "day", "date", "week", "calendar", 
             "archive", "history", "past", "previous", "footer", "header", "meta", "nav",
             "wordlist", "dictionary", "glossary",
 
-            #Filtering out events 
+            #Filtering for events 
             r"/events/\d+", r"/events/month/", r"/events/week/",
+
             # Date formatted patterns or Year
-            
             r"^\d{4}-\d{2}-\d{2}$", r"^\d{2}-\d{2}-\d{4}$", r"\b(19|20)\d{2}\b"
         ]
 
@@ -199,6 +195,7 @@ def is_valid(url):
         if any(pattern in url for pattern in unwanted_patterns):
             return False
       
+        #Added war, apk, sql, ppsx, ps, and sql
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -207,7 +204,7 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"war|apk|sql|html|img|ppsx|ps"
+            + r"|war|apk|sql|img|ppsx|ps|html"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:
