@@ -176,7 +176,7 @@ def is_valid(url):
     
             unwanted_patterns = [
         "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
-        "/month/", "/list/", "/events/2" "eventDisplay=past", "?share=", "pdf", 
+        "/month/", "/list/", "/events/2", "eventDisplay=past", "?share=", "pdf", 
         "redirect", "#comment", "#respond", "#comments", 
         "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
         "year", "month", "day", "date", "week", "calendar", 
