@@ -174,7 +174,7 @@ def is_valid(url):
             return False
         # filter unwanted urls to avoid traps
     
-            unwanted_patterns = [
+        unwanted_patterns = [
         "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
         "/month/", "/list/", "/events/2", "eventDisplay=past", "?share=", "pdf", 
         "redirect", "#comment", "#respond", "#comments", 
@@ -290,8 +290,7 @@ def check_similarity(curr_hash, stored_hash):
 
     # Calculate similarity
     similarity = len(intersection) / len(union)
-    print("stored hash")
-    print(stored_hash)
+    
     print("similarity is " + str(similarity))
     return similarity
 
