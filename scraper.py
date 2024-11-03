@@ -31,6 +31,7 @@ max_words = ["", 0] # URL with the most words
 word_frequencies = Counter()
 subdomains = {}
 url_hash = []
+checksum_dict = {}
 
 
 def scraper(url, resp):
@@ -91,6 +92,13 @@ def extract_next_links(url, resp):
     
     page_text_for_simhash = soup.get_text().split()
 
+    checksum = simple_checksum(page_text_for_simhash)
+
+    if checksum in checksum_dict:
+        return []
+    else:
+        checksum_dict[checksum] = url
+
     is_near_duplicate = simhash(page_text_for_simhash, url_hash)
     
     if is_near_duplicate:
@@ -141,10 +149,9 @@ def extract_next_links(url, resp):
 def extract_words(text):
     stop_words = set(stopwords.words('english'))
     words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
-    tokenized_words = nltk.word_tokenize(' '.join(words))
     # Only include words that are alphabetic, have a length >= 3, and are not in STOP_WORDS
     non_stop_words = [
-        word for word in tokenized_words if word.isalpha() and len(word) >= 3 and word not in stop_words
+        word for word in words if word.isalpha() and len(word) >= 3 and word not in stop_words
     ]
 
     return non_stop_words
@@ -157,7 +164,7 @@ def is_valid(url):
     global blacklisted_urls
     try:
         parsed = urlparse(url)
-        if parsed.scheme not in (["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
             return False
         
         if parsed.query:
@@ -169,7 +176,7 @@ def is_valid(url):
     
             unwanted_patterns = [
         "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
-        "/month/", "/list/", "eventDisplay=past", "?share=", "pdf", 
+        "/month/", "/list/", "/events/2" "eventDisplay=past", "?share=", "pdf", 
         "redirect", "#comment", "#respond", "#comments", 
         "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
         "year", "month", "day", "date", "week", "calendar", 
@@ -191,7 +198,7 @@ def is_valid(url):
            return parsed.path.startswith("/department/information_computer_sciences/")
         
          # Check if domain matches any allowed domain
-        if not any(parsed.netloc.endswith(domain) for domain in allowed_domains):
+        if not any(parsed.netloc == domain or parsed.netloc.endswith('.' + domain) for domain in allowed_domains):
             return False
         if url in blacklisted_urls:
             return False
@@ -225,6 +232,19 @@ def CheckLargeFile(resp) -> bool:
     content_size = int(resp.headers.get("Content-Length", len(resp.raw_response.content)) if hasattr(resp, 'headers') else len(resp.raw_response.content))
     return content_size > threshold
 
+
+
+def simple_checksum(page_text):
+
+    checksum = 0
+
+    full_text = ''.join(page_text)
+
+    for char in full_text:
+        ascii_value = ord(char)
+        checksum = (checksum + ascii_value) % 1000000007
+    
+    return checksum
 
 def generate_trigram(list_of_words):
 
