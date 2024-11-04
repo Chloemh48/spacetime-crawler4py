@@ -1,5 +1,7 @@
 
 
+
+
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Comment
@@ -118,10 +120,10 @@ def extract_next_links(url, resp):
     base_url = url.split('#')[0]  # Remove fragment
     unique_urls[base_url] = word_count
     
-    if word_count > max_words[1] and "wordlist" not in url:
+    if word_count > max_words[1]:
         max_words = [url, word_count]
     
-      # Update subdomain statistics
+    # Update subdomain statistics
     parsed_url = urlparse(url)
     if '.uci.edu' in parsed_url.netloc:
         subdomain = parsed_url.netloc
@@ -146,8 +148,14 @@ def extract_next_links(url, resp):
     return list(links)
 
 
+
 def extract_words(text):
     stop_words = set(stopwords.words('english'))
+    stop_words.update([
+        "january", "february", "march", "april", "may", "june", 
+        "july", "august", "september", "october", "november", "december",
+        "markellekelly", "week", "day"
+    ])
     words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
     # Only include words that are alphabetic, have a length >= 3, and are not in STOP_WORDS
     non_stop_words = [
@@ -377,6 +385,7 @@ def print_statistics():
     print("\nSubdomains found:")
     for domain, count in sorted(subdomains.items()):
         print(f"{domain}: {count} pages")
+
 
 
 
