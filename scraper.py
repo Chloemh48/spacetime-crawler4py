@@ -29,7 +29,7 @@ blacklisted_urls = set()
 max_words = ["", 0] # URL with the most words
 word_frequencies = Counter()
 subdomains = {}
-url_hash = []
+url_hash = {}
 checksum_dict = {}
 
 
@@ -101,7 +101,7 @@ def extract_next_links(url, resp):
     is_near_duplicate = simhash(page_text_for_simhash, url_hash)
     
     if is_near_duplicate:
-        url_hash.append([url, is_near_duplicate])
+        url_hash[url] = is_near_duplicate
     
     else:
         return []
@@ -298,8 +298,8 @@ def check_similarity(curr_hash, stored_hash):
 def is_near_duplicates(curr_hash_set, url_hashes):
 
     threshold = .85
-    for url, fingerprints in url_hashes:
-        similarity = check_similarity(curr_hash_set, set(fingerprints))
+    for url, fingerprints in url_hashes.items():
+        similarity = check_similarity(curr_hash_set, fingerprints)
 
         if similarity >= threshold:
             return True
