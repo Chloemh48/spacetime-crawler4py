@@ -14,7 +14,7 @@ import nltk
 from nltk.corpus import stopwords
 
 
-SAVE_INTERVAL = 60  # Save every 5 minutes
+SAVE_INTERVAL = 600  # Save every 5 minutes
 last_save_time = time.time()  # Track the last save time
 
 
@@ -232,7 +232,7 @@ def is_valid(url):
 
 
 def CheckLowInformation(content: BeautifulSoup) -> bool:
-    return len(content.get_text().split()) < 300
+    return len(content.get_text().split()) < 2000
 
 
 def CheckLargeFile(resp) -> bool:
