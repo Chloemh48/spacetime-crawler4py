@@ -1,7 +1,4 @@
 
-
-
-
 import re
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Comment
@@ -14,7 +11,7 @@ import nltk
 from nltk.corpus import stopwords
 
 
-SAVE_INTERVAL = 600  # Save every 5 minutes
+SAVE_INTERVAL = 60  # Save every 1 minutes
 last_save_time = time.time()  # Track the last save time
 
 
@@ -115,8 +112,6 @@ def extract_next_links(url, resp):
     word_frequencies.update(words)
 
 
-
-
     base_url = url.split('#')[0]  # Remove fragment
     unique_urls[base_url] = word_count
     
@@ -139,7 +134,6 @@ def extract_next_links(url, resp):
 
     current_time = time.time()
     if current_time - last_save_time >= SAVE_INTERVAL:
-        print("Hiiiiii")
         save_report()
         last_save_time = current_time  # Update the last save time
 
@@ -232,7 +226,7 @@ def is_valid(url):
 
 
 def CheckLowInformation(content: BeautifulSoup) -> bool:
-    return len(content.get_text().split()) < 2000
+    return len(content.get_text().split()) < 300
 
 
 def CheckLargeFile(resp) -> bool:
@@ -299,7 +293,6 @@ def check_similarity(curr_hash, stored_hash):
     # Calculate similarity
     similarity = len(intersection) / len(union)
     
-    print("similarity is " + str(similarity))
     return similarity
 
 def is_near_duplicates(curr_hash_set, url_hashes):
@@ -347,7 +340,7 @@ def rep_segment(parsed_url):
     
     return False
 
-def save_report(filename="CrawlerReport.txt"):
+def save_report(filename="Report.txt"):
     """Save crawling statistics to a file."""
     try:
         with open(filename, "w", encoding='utf-8') as f:
@@ -385,6 +378,10 @@ def print_statistics():
     print("\nSubdomains found:")
     for domain, count in sorted(subdomains.items()):
         print(f"{domain}: {count} pages")
+
+
+
+
 
 
 
