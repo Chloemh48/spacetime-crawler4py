@@ -249,37 +249,28 @@ def simple_checksum(page_text):
     
     return checksum
 
-def generate_trigram(list_of_words):
+def generate_trigram(list_of_words, max_count = 1000):
 
-    trigrams = []
+    trigrams = set()
     
+    count = 0
     for i in range(len(list_of_words)-2):
         trigram = (list_of_words[i], list_of_words[i+1], list_of_words[i+2])
-        if trigram not in trigrams:
-            trigrams.append(trigram)
+        
+        
+        sum = 0
+        for word in trigram:
+            for char in word:
+                sum += ord(char)
+        
+        if sum % 4 == 0:
+            if count >= max_count:
+                break
+            trigrams.add(trigram)
+        count += 1
     
     return trigrams
 
-def filter_trigram(trigrams, max_trigrams = 100):
-    
-    select_trigrams = set()
-
-    count = 0
-    #Compute a "hash value for each trigram and filter out using mod"
-    for trigram in trigrams:
-        value = 0
-        for word in trigram:
-            for char in word:
-                number = ord(char)
-                value += number
-        
-        if value % 4 == 0:
-
-            if count >= max_trigrams:
-                break
-            select_trigrams.add(trigram)
-    
-    return select_trigrams
 
 
 def check_similarity(curr_hash, stored_hash):
@@ -311,8 +302,7 @@ def is_near_duplicates(curr_hash_set, url_hashes):
 def simhash(words, url_hashes):
 
 
-    trigrams = generate_trigram(words)
-    selected_trigrams = filter_trigram(trigrams)
+    selected_trigrams = generate_trigram(words)
 
     if not url_hashes:
         return selected_trigrams
