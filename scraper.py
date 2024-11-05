@@ -177,10 +177,10 @@ def is_valid(url):
         # filter unwanted urls to avoid traps
     
         unwanted_patterns = [
-        "filter", "tribe-bar-date=", "/events/", "outlook-ical=", "ical=1", 
+        "filter", "tribe-bar-date=", "outlook-ical=", "ical=1", 
         "/month/", "/list/", "/events/2", "eventDisplay=past", "?share=", "pdf", 
         "redirect", "#comment", "#respond", "#comments", 
-        "seminar_id=", "archive_year=", "/department-seminars/", "/seminar-series/",
+        "seminar_id=", "archive_year=",
         "year", "month", "day", "date", "week", "calendar", 
         "archive", "history", "past", "previous", "footer", "header", "meta", "nav"
     ]
@@ -258,12 +258,12 @@ def generate_trigram(list_of_words, max_count = 1000):
         trigram = (list_of_words[i], list_of_words[i+1], list_of_words[i+2])
         
         
-        sum = 0
+        sumvals = 0
         for word in trigram:
             for char in word:
-                sum += ord(char)
+                sumvals += ord(char)
         
-        if sum % 4 == 0:
+        if sumvals % 4 == 0:
             if count >= max_count:
                 break
             trigrams.add(trigram)
